@@ -1,0 +1,16 @@
+{
+  "menu": [
+    {
+      "id": "criticlass",
+      "label": "CritiClass",
+      "submenu": [
+        {
+          "id": "criticlass.generate-metrics",
+          "label": "Gerar métricas (CK + L&K)",
+          "command": "criticlass:generate-metrics"
+        }
+      ]
+    }
+  ]
+}
+
