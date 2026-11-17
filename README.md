@@ -1,120 +1,255 @@
-# CritiClass — StarUML Object-Oriented Metrics & Test Prioritization Extension
+# CritiClass
 
-Extensão para o **StarUML** que coleta métricas orientadas a objetos de **Chidamber & Kemerer (CK)** e **Lorenz & Kidd (L&K)** diretamente a partir de diagramas de classes UML, realiza a **normalização Min-Max**, calcula um **Score de Criticidade** com pesos configuráveis e destaca automaticamente as **~20% de classes mais críticas para priorização de testes** na fase de design.
+**Priorize o que precisa ser testado antes mesmo de escrever a primeira linha de código.**
 
-O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de testes na fase de design** (antes da existência do código-fonte), inspirado na estrutura do plugin [PickClass](https://github.com/YanPaivaAndrade/PickClassStarUml) (MIT).
+CritiClass é uma extensão para o [StarUML](https://staruml.io/) que analisa modelos UML e identifica as classes estruturalmente mais críticas de um sistema, auxiliando na definição de prioridades de teste ainda durante a fase de design.
 
----
+A ferramenta extrai métricas de complexidade, acoplamento, herança e estrutura de classes, combina esses indicadores em um Score de Criticidade configurável e utiliza o princípio de Pareto para identificar os 20% de classes que merecem maior atenção durante o planejamento dos testes.
 
-## Checklist de Progresso
-
-### Fase 1 — Coleta e Exportação de Métricas (Concluída)
-- [x] **Etapa 1 — Esqueleto do Plugin**
-  - [x] Configuração do manifesto (`package.json`)
-  - [x] Registro do comando `criticlass:generate-metrics` (`main.js`)
-  - [x] Menu superior **CritiClass → Gerar métricas (CK + L&K)** (`menus/criticlass.json`)
-  - [x] Atalho de teclado `Ctrl+Shift+M` (`keymaps/criticlass.json`)
-- [x] **Etapa 2 — Leitura do Modelo (`src/modelReader.js`)**
-  - [x] Coleta global de `UMLClass`, `UMLInterface`, `UMLGeneralization`, `UMLAssociation`, `UMLDependency` e `UMLInterfaceRealization`
-  - [x] Filtro de perfis (`UMLProfile`) e deduplicação por `_id`
-  - [x] Extração de atributos (`name`, `visibility`, `isStatic`) e operações (`name`, `visibility`, `isStatic`, `params` excluindo retorno)
-  - [x] Mapeamento de herança (`parents` e classes filhas) via `UMLGeneralization`
-  - [x] Mapeamento de acoplamentos (`relations` com `kind`, `targetId` e `direction`), ignorando autoassociações e registrando ambos os sentidos quando a navegabilidade não é especificada
-- [x] **Etapa 3 — Métricas de Chidamber & Kemerer (`src/metrics/ck.js`) + Testes (`test/ck.test.js`)**
-  - [x] `WMC` (Weighted Methods per Class — peso 1 por operação, com ponto de extensão para pesos)
-  - [x] `DIT` (Depth of Inheritance Tree — maior caminho até a raiz, com proteção contra ciclos e suporte a herança múltipla)
-  - [x] `NOC` (Number of Children — subclasses diretas)
-  - [x] `CBO` (Coupling Between Object Classes — classes/interfaces distintas acopladas)
-  - [x] `Ce` e `Ca` (Acoplamento eferente/saída e aferente/entrada)
-  - [x] `RFC` (Response For a Class — aproximação: operações da classe + operações distintas das classes diretamente acopladas)
-  - [x] `LCOM` (marcado como `N/A` na fase de design)
-- [x] **Etapa 4 — Métricas de Lorenz & Kidd (`src/metrics/lk.js`) + Testes (`test/lk.test.js`)**
-  - [x] `NIV` e `NCV` (atributos de instância e de classe/estáticos)
-  - [x] `NIM` e `NCM` (operações de instância e de classe/estáticas)
-  - [x] `PIM` (operações de instância públicas)
-  - [x] `NMO` (operações sobrescritas na hierarquia de herança)
-  - [x] `NMI` (operações herdadas não privadas e não sobrescritas)
-  - [x] `NMA` (operações novas adicionadas = `NIM - NMO`)
-  - [x] `SIX` (Specialization Index = `(NMO * DIT) / (NMO + NMA + NMI)`)
-  - [x] `APPM` (média de parâmetros por operação, sem contar retorno)
-- [x] **Etapa 5 — Exportação e Interface (`src/exporter.js` + `test/exporter.test.js`)**
-  - [x] Exportação de planilha `.xlsx` (e `.csv` opcional) com uma linha por classe
-  - [x] Aba **Legenda** explicando cada métrica e limitações de design (`LCOM = N/A`, `WMC` com peso 1, `RFC` aproximado)
-  - [x] Diálogo final no StarUML informando o arquivo salvo e o total de classes analisadas
-
-### Fase 2 — Priorização de Testes (Concluída)
-- [x] **Normalização Min-Max (`src/metrics/normalizer.js` + `test/normalizer.test.js`)**
-  - [x] Cálculo de limites `[min, max]` por métrica numérica e normalização no intervalo `[0, 1]` (tratando `max === min` como `0`)
-- [x] **Pesos Configuráveis e Score de Criticidade (`src/metrics/prioritizer.js` + `test/prioritizer.test.js`)**
-  - [x] Pesos configuráveis por métrica (padrão `1.0`), persistidos no StarUML via menu **Configurar pesos das métricas...** e opção **Restaurar pesos padrão (1.0)**
-  - [x] Cálculo da média ponderada normalizada (`Score` em `[0, 1]`) e da `Soma Ponderada`
-- [x] **Ranking e Indicação das ~20% de Classes Mais Críticas**
-  - [x] Ordenação por `Score` decrescente (com critérios determinísticos de desempate: `Soma Ponderada`, `CBO`, `RFC`, `WMC` e ordem alfabética)
-  - [x] Classificação automática das `ceil(0.20 * N)` primeiras classes como **`ALTA (Top 20%)`**
-  - [x] Geração da aba **"Priorização (Top 20%)"** na planilha `.xlsx` (com ranking, scores, métricas normalizadas, pesos configurados e limites `min`/`max`) e exibição das classes críticas no diálogo final do StarUML
+<p align="center">
+  <img src="https://img.shields.io/badge/StarUML-%3E%3D3.0.0-1F4E3D?style=flat-square" alt="StarUML">
+  <img src="https://img.shields.io/badge/M%C3%A9tricas-CK%20%2B%20Lorenz%20%26%20Kidd-2E6B55?style=flat-square" alt="Métricas">
+  <img src="https://img.shields.io/badge/Exporta%C3%A7%C3%A3o-XLSX%20%7C%20CSV-D97706?style=flat-square" alt="Exportação">
+  <img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-blue?style=flat-square" alt="Licença">
+</p>
 
 ---
 
-## Estrutura do Projeto
+## O problema
+
+O planejamento de testes de software envolve decidir onde concentrar esforços. Entretanto, nem todas as classes de um sistema apresentam o mesmo nível de complexidade estrutural.
+
+Classes com muitas responsabilidades, alto acoplamento, hierarquias profundas ou grande quantidade de operações podem representar pontos de maior atenção durante a implementação e manutenção do software.
+
+Tradicionalmente, parte dessas características é investigada durante a análise do código-fonte. O CritiClass propõe antecipar essa investigação para a etapa de modelagem UML.
+
+Essa abordagem está alinhada ao conceito de **Shift-Left Testing**, levando indicadores estruturais para momentos anteriores do ciclo de desenvolvimento.
+
+## Como o CritiClass funciona
+
+A análise é realizada diretamente sobre o modelo aberto no StarUML.
+
+<p align="center">
+  <img src="docs/images/criticlass-workflow.svg" alt="Fluxo de funcionamento do CritiClass" width="850">
+</p>
+
+O processamento é dividido em quatro etapas:
+
+1. **Leitura do modelo:** identificação das classes, interfaces e relacionamentos presentes no projeto.
+2. **Extração de métricas:** cálculo dos indicadores de Chidamber & Kemerer e Lorenz & Kidd.
+3. **Normalização e priorização:** conversão dos indicadores para uma escala comum e cálculo do Score de Criticidade.
+4. **Relatório:** geração de um ranking de criticidade e exportação dos resultados para Excel ou CSV.
+
+### Score de Criticidade
+
+As métricas possuem escalas e unidades diferentes. Para permitir sua combinação, o CritiClass utiliza normalização Min-Max, transformando os valores para o intervalo de 0 a 1.
+
+A normalização é calculada por:
+
+$$
+x_{\text{norm}} = \frac{x - x_{\min}}{x_{\max} - x_{\min}}
+$$
+
+Quando os valores mínimo e máximo são iguais ($x_{\max} = x_{\min}$), o resultado normalizado é definido como $0$.
+
+Após a normalização, é calculado o Score de Criticidade por meio de uma média ponderada:
+
+$$
+\text{Score} = \frac{\sum (w_m \cdot x_{\text{norm}, m})}{\sum w_m}
+$$
+
+Os pesos são configuráveis, permitindo adaptar a análise às características e aos objetivos de cada projeto.
+
+As classes são ordenadas pelo Score em ordem decrescente. As primeiras $\lceil 0{,}20 \times N \rceil$ classes recebem a classificação **ALTA (Top 20%)**.
+
+Esse resultado representa uma priorização estrutural para orientar o planejamento dos testes, não uma previsão estatística de defeitos.
+
+---
+
+## Métricas analisadas
+
+O CritiClass implementa dois conjuntos clássicos de métricas orientadas a objetos.
+
+### Chidamber & Kemerer (CK)
+
+| Métrica      | Descrição                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| WMC          | Weighted Methods per Class. Soma dos pesos das operações da classe. Peso padrão: 1 por operação.                                |
+| DIT          | Depth of Inheritance Tree. Maior caminho da classe até a raiz da hierarquia de herança.                                         |
+| NOC          | Number of Children. Quantidade de subclasses diretas.                                                                           |
+| CBO          | Coupling Between Object Classes. Quantidade de classes e interfaces distintas acopladas.                                        |
+| Ce           | Efferent Coupling. Quantidade de classes e interfaces das quais a classe depende.                                               |
+| Ca           | Afferent Coupling. Quantidade de classes e interfaces que dependem da classe.                                                   |
+| RFC (aprox.) | Response For a Class. Operações da própria classe somadas às operações distintas de classes e interfaces diretamente acopladas. |
+| LCOM         | Lack of Cohesion in Methods. Não calculada, pois depende da análise de acesso aos atributos no corpo dos métodos.               |
+
+### Lorenz & Kidd (L&K)
+
+| Métrica | Descrição                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| NIV     | Number of Instance Variables. Atributos de instância.                                                        |
+| NCV     | Number of Class Variables. Atributos estáticos.                                                              |
+| NIM     | Number of Instance Methods. Operações de instância.                                                          |
+| NCM     | Number of Class Methods. Operações estáticas.                                                                |
+| PIM     | Public Instance Methods. Operações públicas de instância.                                                    |
+| NMO     | Number of Methods Overridden. Operações que sobrescrevem métodos herdados.                                   |
+| NMI     | Number of Methods Inherited. Operações herdadas não privadas e não sobrescritas.                             |
+| NMA     | Number of Methods Added. Operações de instância introduzidas pela classe, calculadas por $\text{NIM} - \text{NMO}$. |
+| SIX     | Specialization Index. Índice de especialização: $\frac{\text{NMO} \times \text{DIT}}{\text{NMO} + \text{NMA} + \text{NMI}}$. |
+| APPM    | Average Parameters per Method. Média de parâmetros de entrada por operação, excluindo parâmetros de retorno. |
+
+**Observação metodológica:** algumas métricas tradicionais dependem de informações disponíveis somente na implementação. O CritiClass considera as informações observáveis nos diagramas UML e documenta explicitamente as aproximações utilizadas.
+
+---
+
+## Relatórios e exportação
+
+A análise pode ser exportada para Excel (.xlsx) ou CSV (.csv).
+
+O relatório Excel é organizado em três abas:
+
+### 1. Métricas
+
+Apresenta os valores brutos de todas as métricas calculadas para cada classe do modelo.
+
+### 2. Priorização (Top 20%)
+
+Apresenta o ranking das classes, incluindo:
+
+- Score de Criticidade;
+- Soma Ponderada;
+- Classificação de prioridade;
+- Métricas normalizadas;
+- Pesos configurados;
+- Valores mínimos e máximos observados no modelo.
+
+As classes classificadas como ALTA (Top 20%) recebem destaque visual no relatório.
+
+### 3. Legenda
+
+Reúne as definições, siglas e informações metodológicas das métricas utilizadas.
+
+---
+
+## Configuração de pesos
+
+O CritiClass permite personalizar a influência de cada métrica no cálculo do Score de Criticidade.
+
+Por exemplo:
 
 ```text
-CritiClassStarUml/
-├── package.json
-├── main.js                   # Ponto de entrada (init), comandos, configuração de pesos e diálogos no StarUML
-├── menus/
-│   └── criticlass.json       # Menu "CritiClass" (geração .xlsx/.csv e configuração de pesos)
-├── keymaps/
-│   └── criticlass.json       # Atalho de teclado (Ctrl+Shift+M)
-├── src/
-│   ├── modelReader.js        # Conversão do repositório do StarUML para objetos JS puros
-│   ├── exporter.js           # Geração de .xlsx (abas "Métricas", "Priorização (Top 20%)" e "Legenda") e .csv
-│   └── metrics/
-│       ├── ck.js             # Funções puras das métricas de Chidamber & Kemerer
-│       ├── lk.js             # Funções puras das métricas de Lorenz & Kidd
-│       ├── normalizer.js     # Normalização Min-Max [0, 1] das métricas numéricas
-│       └── prioritizer.js    # Pesos configuráveis, Score de Criticidade, Ranking e corte Top 20%
-└── test/
-    ├── fixtures/
-    │   └── sampleModel.js    # Modelo de referência (Person, Student, Professor, Course) e gabarito
-    ├── ck.test.js            # Testes unitários das métricas CK
-    ├── lk.test.js            # Testes unitários das métricas L&K
-    ├── normalizer.test.js    # Testes unitários da normalização Min-Max
-    ├── prioritizer.test.js   # Testes unitários do cálculo de Score, Ranking, Top 20% e parser de pesos
-    ├── exporter.test.js      # Testes unitários da exportação (.xlsx, .csv, Priorização e Legenda)
-    └── modelReader.test.js   # Testes unitários do leitor de modelo
+WMC=2, CBO=3, RFC=2, DIT=0
 ```
+
+Nesse cenário, o acoplamento (CBO) terá maior influência na priorização, enquanto DIT não contribuirá para o Score.
+
+Os pesos padrão são iguais a 1.0 para todas as métricas.
 
 ---
 
-## Como Instalar e Usar no StarUML
+## Instalação
 
-### 1. Copiar ou criar link na pasta de extensões do StarUML
+### Requisitos
 
-**No Windows (PowerShell):**
+- StarUML versão 3.0.0 ou superior.
+- Node.js e Yarn ou npm para execução dos testes de desenvolvimento.
+
+### Windows
+
+Copie a pasta do projeto para o diretório de extensões do StarUML:
+
 ```powershell
 Copy-Item -Path ".\*" -Destination "$env:APPDATA\StarUML\extensions\user\CritiClassStarUml" -Recurse -Force
 ```
 
-**No macOS (Terminal):**
+### macOS
+
+Crie um link simbólico para o diretório de extensões:
+
 ```bash
 ln -s "$(pwd)" "$HOME/Library/Application Support/StarUML/extensions/user/CritiClassStarUml"
 ```
 
-### 2. Recarregar e executar
-1. No StarUML, acesse **Debug → Reload**.
-2. Abra um modelo `.mdj` com um diagrama de classes.
-3. *(Opcional)* Ajuste os pesos das métricas em **CritiClass → Configurar pesos das métricas...**.
-4. Acione **CritiClass → Gerar métricas (CK + L&K)** no menu ou pressione **`Ctrl+Shift+M`**.
-5. O arquivo `<NomeDoProjeto>-metrics.xlsx` será salvo na sua pasta de **Downloads** (contendo as abas **Métricas**, **Priorização (Top 20%)** e **Legenda**) e um diálogo exibirá o resumo das classes mais críticas recomendadas para teste.
+### Ativação
+
+1. Abra o StarUML.
+2. Acesse **Debug → Reload**.
+3. Localize o menu **CritiClass** na barra superior.
+
+## Comandos disponíveis
+
+| Comando                       | Atalho           | Descrição                                                                      |
+| ----------------------------- | ---------------- | ------------------------------------------------------------------------------ |
+| Gerar métricas (CK + L&K)     | Ctrl + Shift + M | Executa a análise, gera o relatório Excel e apresenta as classes prioritárias. |
+| Exportar métricas (.csv)      | —                | Exporta os valores das métricas em CSV (UTF-8 com BOM).                        |
+| Configurar pesos das métricas | —                | Permite personalizar os pesos utilizados no Score.                             |
+| Restaurar pesos padrão        | —                | Retorna todos os pesos para 1.0.                                               |
 
 ---
 
-## Como Executar os Testes Unitários
+## Arquitetura do projeto
 
-Com Node.js e Yarn/NPM instalados:
+O projeto foi estruturado para separar a integração com a API do StarUML das regras de cálculo e priorização.
+
+```text
+CritiClassStarUml/
+├── package.json
+├── main.js
+├── menus/
+│   └── criticlass.json
+├── keymaps/
+│   └── criticlass.json
+├── src/
+│   ├── modelReader.js
+│   ├── exporter.js
+│   └── metrics/
+│       ├── ck.js
+│       ├── lk.js
+│       ├── normalizer.js
+│       └── prioritizer.js
+└── test/
+    ├── fixtures/
+    │   └── sampleModel.js
+    ├── ck.test.js
+    ├── lk.test.js
+    ├── normalizer.test.js
+    ├── prioritizer.test.js
+    ├── exporter.test.js
+    └── modelReader.test.js
+```
+
+### Testes automatizados
+
+A lógica de cálculo e priorização possui testes unitários independentes da execução do StarUML.
+
+Para executar:
+
 ```bash
 yarn test
-# ou
+```
+
+Ou:
+
+```bash
 npm test
 ```
 
+---
+
+## Tecnologias e conceitos
+
+- JavaScript
+- StarUML Extension API
+- UML e Engenharia de Software
+- Métricas de software orientadas a objetos
+- Normalização Min-Max
+- Média ponderada
+- Princípio de Pareto
+- Testes unitários
+- OpenXML e exportação de planilhas
+
+---
+
+## Licença
+
+Este projeto está licenciado sob a [MIT License](LICENSE).
