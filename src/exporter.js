@@ -1,5 +1,7 @@
 const { calculateCKMetricsForClass, buildClassMap } = require("./metrics/ck");
 const { calculateLKMetricsForClass } = require("./metrics/lk");
+const { NUMERIC_METRIC_KEYS } = require("./metrics/normalizer");
+const { prioritizeClasses } = require("./metrics/prioritizer");
 
 let XLSX = null;
 try {
@@ -29,6 +31,15 @@ const DATA_HEADERS = [
   "NMA",
   "SIX",
   "APPM"
+];
+
+const PRIORITIZATION_HEADERS = [
+  "Ranking",
+  "Classe",
+  "Prioridade",
+  "Score",
+  "Soma Ponderada",
+  ...NUMERIC_METRIC_KEYS.map((key) => `${key} (norm)`)
 ];
 
 const LEGEND_HEADERS = [
@@ -165,6 +176,27 @@ const LEGEND_ROWS = [
     "Average Parameters per Method",
     "Média de parâmetros por operação da classe, sem contar o parâmetro de retorno.",
     "Quando a classe não possui operações, o valor resultante é 0."
+  ],
+  [
+    "Min-Max",
+    "Fase 2 — Priorização",
+    "Normalização Min-Max",
+    "(x - min) / (max - min) no intervalo [0, 1] para cada métrica numérica.",
+    "Quando todas as classes possuem o mesmo valor em uma métrica (max = min), o valor normalizado atribuído é 0."
+  ],
+  [
+    "Score",
+    "Fase 2 — Priorização",
+    "Score de Criticidade",
+    "Média ponderada das métricas normalizadas: Σ(peso_m * norm_m) / Σ(peso_m).",
+    "Varia de 0 a 1. Os pesos são configuráveis por métrica (padrão = 1 para todas as 17 métricas numéricas)."
+  ],
+  [
+    "Top 20%",
+    "Fase 2 — Priorização",
+    "Priorização de Testes (Pareto ~20%)",
+    "Indica as ceil(0.20 * N) classes com maior Score de Criticidade como ALTA (Top 20%).",
+    "Critérios de desempate em caso de mesmo Score: Soma Ponderada, CBO, RFC, WMC e nome da classe."
   ]
 ];
 
@@ -218,6 +250,74 @@ function buildDataSheetAoA(metricsRows) {
       row.APPM
     ]);
   });
+
+  return aoa;
+}
+
+function buildPrioritizationSheetAoA(metricsRowsOrPrioritization, options = {}) {
+  const prioritization =
+    metricsRowsOrPrioritization && Array.isArray(metricsRowsOrPrioritization.rankedRows)
+      ? metricsRowsOrPrioritization
+      : prioritizeClasses(metricsRowsOrPrioritization, options);
+
+  const aoa = [PRIORITIZATION_HEADERS];
+
+  prioritization.rankedRows.forEach((row) => {
+    const normCells = NUMERIC_METRIC_KEYS.map((key) =>
+      row.normalized && typeof row.normalized[key] === "number" ? row.normalized[key] : 0
+    );
+
+    aoa.push([
+      row.rank,
+      row.name || "(sem nome)",
+      row.priorityLabel,
+      row.score,
+      row.weightedSum,
+      ...normCells
+    ]);
+  });
+
+  aoa.push([]);
+  aoa.push([
+    "",
+    "Parâmetro",
+    "Descrição",
+    "",
+    "",
+    ...NUMERIC_METRIC_KEYS
+  ]);
+  aoa.push([
+    "",
+    "Peso Configurado",
+    "Peso aplicado na média ponderada",
+    "",
+    "",
+    ...NUMERIC_METRIC_KEYS.map((key) =>
+      prioritization.weights && typeof prioritization.weights[key] === "number"
+        ? prioritization.weights[key]
+        : 1
+    )
+  ]);
+  aoa.push([
+    "",
+    "Mínimo (min)",
+    "Menor valor observado no modelo",
+    "",
+    "",
+    ...NUMERIC_METRIC_KEYS.map((key) =>
+      prioritization.bounds && prioritization.bounds[key] ? prioritization.bounds[key].min : 0
+    )
+  ]);
+  aoa.push([
+    "",
+    "Máximo (max)",
+    "Maior valor observado no modelo",
+    "",
+    "",
+    ...NUMERIC_METRIC_KEYS.map((key) =>
+      prioritization.bounds && prioritization.bounds[key] ? prioritization.bounds[key].max : 0
+    )
+  ]);
 
   return aoa;
 }
@@ -408,16 +508,20 @@ function buildFallbackXlsxBuffer(sheets) {
   return createStoreZipBuffer(zipEntries);
 }
 
-function exportToXlsxBuffer(metricsRows) {
+function exportToXlsxBuffer(metricsRows, options = {}) {
   const dataAoA = buildDataSheetAoA(metricsRows);
+  const prioritization = options.prioritization || prioritizeClasses(metricsRows, options);
+  const prioritizationAoA = buildPrioritizationSheetAoA(prioritization);
   const legendAoA = buildLegendSheetAoA();
 
   if (XLSX && XLSX.utils && typeof XLSX.write === "function") {
     const workbook = XLSX.utils.book_new();
     const dataWorksheet = XLSX.utils.aoa_to_sheet(dataAoA);
+    const prioritizationWorksheet = XLSX.utils.aoa_to_sheet(prioritizationAoA);
     const legendWorksheet = XLSX.utils.aoa_to_sheet(legendAoA);
 
     XLSX.utils.book_append_sheet(workbook, dataWorksheet, "Métricas");
+    XLSX.utils.book_append_sheet(workbook, prioritizationWorksheet, "Priorização (Top 20%)");
     XLSX.utils.book_append_sheet(workbook, legendWorksheet, "Legenda");
 
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
@@ -425,6 +529,7 @@ function exportToXlsxBuffer(metricsRows) {
 
   return buildFallbackXlsxBuffer([
     { name: "Métricas", aoa: dataAoA },
+    { name: "Priorização (Top 20%)", aoa: prioritizationAoA },
     { name: "Legenda", aoa: legendAoA }
   ]);
 }
@@ -465,10 +570,12 @@ function triggerBrowserDownload(content, fileName, mimeType) {
 
 module.exports = {
   DATA_HEADERS,
+  PRIORITIZATION_HEADERS,
   LEGEND_HEADERS,
   LEGEND_ROWS,
   collectAllMetrics,
   buildDataSheetAoA,
+  buildPrioritizationSheetAoA,
   buildLegendSheetAoA,
   exportToXlsxBuffer,
   exportToCsvString,

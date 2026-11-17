@@ -1,9 +1,11 @@
 const {
   DATA_HEADERS,
+  PRIORITIZATION_HEADERS,
   LEGEND_HEADERS,
   LEGEND_ROWS,
   collectAllMetrics,
   buildDataSheetAoA,
+  buildPrioritizationSheetAoA,
   buildLegendSheetAoA,
   exportToXlsxBuffer,
   exportToCsvString
@@ -13,7 +15,7 @@ const {
   EXPECTED_ACADEMIC_METRICS
 } = require("./fixtures/sampleModel");
 
-describe("Exporter (XLSX, CSV and Legenda)", () => {
+describe("Exporter (XLSX, CSV, Priorização and Legenda)", () => {
   test("collectAllMetrics combines all CK and L&K metrics matching the reference gabarito", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
@@ -29,10 +31,11 @@ describe("Exporter (XLSX, CSV and Legenda)", () => {
     });
   });
 
-  test("buildDataSheetAoA and buildLegendSheetAoA include all required columns and legend rows", () => {
+  test("buildDataSheetAoA, buildPrioritizationSheetAoA and buildLegendSheetAoA include all required columns and legend rows", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
     const dataAoA = buildDataSheetAoA(metrics);
+    const prioritizationAoA = buildPrioritizationSheetAoA(metrics);
     const legendAoA = buildLegendSheetAoA();
 
     expect(dataAoA[0]).toEqual(DATA_HEADERS);
@@ -62,6 +65,12 @@ describe("Exporter (XLSX, CSV and Legenda)", () => {
       0.5 // APPM
     ]);
 
+    expect(prioritizationAoA[0]).toEqual(PRIORITIZATION_HEADERS);
+    // Row 1 in prioritizationAoA is Rank 1 (Student, ALTA (Top 20%))
+    expect(prioritizationAoA[1][0]).toBe(1);
+    expect(prioritizationAoA[1][1]).toBe("Student");
+    expect(prioritizationAoA[1][2]).toBe("ALTA (Top 20%)");
+
     expect(legendAoA[0]).toEqual(LEGEND_HEADERS);
     expect(legendAoA.length).toBe(1 + LEGEND_ROWS.length);
     const legendAcronyms = legendAoA.slice(1).map((r) => r[0]);
@@ -70,9 +79,12 @@ describe("Exporter (XLSX, CSV and Legenda)", () => {
     expect(legendAcronyms).toContain("LCOM");
     expect(legendAcronyms).toContain("SIX");
     expect(legendAcronyms).toContain("APPM");
+    expect(legendAcronyms).toContain("Min-Max");
+    expect(legendAcronyms).toContain("Score");
+    expect(legendAcronyms).toContain("Top 20%");
   });
 
-  test("exportToXlsxBuffer produces a valid ZIP/OpenXML buffer containing Métricas and Legenda sheets", () => {
+  test("exportToXlsxBuffer produces a valid ZIP/OpenXML buffer containing Métricas, Priorização (Top 20%) and Legenda sheets", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
     const buffer = exportToXlsxBuffer(metrics);
@@ -82,8 +94,11 @@ describe("Exporter (XLSX, CSV and Legenda)", () => {
     // ZIP magic header PK\x03\x04
     expect(buffer[0]).toBe(0x50);
     expect(buffer[1]).toBe(0x4b);
-    expect(buffer.toString("utf8")).toContain("Legenda");
-    expect(buffer.toString("utf8")).toContain("Student");
+    const text = buffer.toString("utf8");
+    expect(text).toContain("Prioriza");
+    expect(text).toContain("ALTA (Top 20%)");
+    expect(text).toContain("Legenda");
+    expect(text).toContain("Student");
   });
 
   test("exportToCsvString generates UTF-8 CSV with header and class rows", () => {
