@@ -269,13 +269,14 @@ function readModel(rootElement, options = {}) {
     if (!iface || !iface._id) {
       return;
     }
+    const plainInterface = mapClassifierToPlainObject(iface);
     targetsById.set(iface._id, {
       id: iface._id,
       name: iface.name || "(sem nome)",
-      kind: "interface"
+      kind: "interface",
+      operations: plainInterface.operations
     });
     if (includeInterfaces) {
-      const plainInterface = mapClassifierToPlainObject(iface);
       classesById.set(iface._id, plainInterface);
     }
   });

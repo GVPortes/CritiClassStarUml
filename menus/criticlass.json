@@ -8,9 +8,13 @@
           "id": "criticlass.generate-metrics",
           "label": "Gerar métricas (CK + L&K)",
           "command": "criticlass:generate-metrics"
+        },
+        {
+          "id": "criticlass.export-csv",
+          "label": "Exportar métricas (.csv)",
+          "command": "criticlass:export-csv"
         }
       ]
     }
   ]
 }
-

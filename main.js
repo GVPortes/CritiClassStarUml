@@ -1,79 +1,94 @@
 const { readModel } = require("./src/modelReader");
+const {
+  collectAllMetrics,
+  exportToXlsxBuffer,
+  exportToCsvString,
+  sanitizeFileName,
+  triggerBrowserDownload
+} = require("./src/exporter");
 
-const COMMAND_ID = "criticlass:generate-metrics";
-const COMMAND_LABEL = "Gerar métricas (CK + L&K)";
+const COMMAND_GENERATE_XLSX = "criticlass:generate-metrics";
+const LABEL_GENERATE_XLSX = "Gerar métricas (CK + L&K)";
 
-function formatTargetNames(ids, targetsById, emptyLabel) {
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return emptyLabel;
+const COMMAND_EXPORT_CSV = "criticlass:export-csv";
+const LABEL_EXPORT_CSV = "Exportar métricas (.csv)";
+
+function showMessageDialog(message) {
+  if (typeof app !== "undefined" && app.dialogs && typeof app.dialogs.showInfoDialog === "function") {
+    app.dialogs.showInfoDialog(message);
+    return;
   }
-  return ids
-    .map((id) => (targetsById[id] ? targetsById[id].name : id))
-    .join(", ");
+  if (typeof window !== "undefined" && typeof window.alert === "function") {
+    window.alert(message);
+  }
 }
 
-function formatCoupledTargets(relations, targetsById) {
-  if (!Array.isArray(relations) || relations.length === 0) {
-    return "nenhuma";
-  }
-
-  const byTarget = new Map();
-  relations.forEach((rel) => {
-    const targetName = targetsById[rel.targetId] ? targetsById[rel.targetId].name : rel.targetId;
-    if (!byTarget.has(rel.targetId)) {
-      byTarget.set(rel.targetId, { name: targetName, details: [] });
-    }
-    byTarget.get(rel.targetId).details.push(`${rel.direction}:${rel.kind}`);
-  });
-
-  return Array.from(byTarget.values())
-    .map((entry) => `${entry.name} (${entry.details.join(", ")})`)
-    .join(", ");
-}
-
-function handleGenerateMetrics() {
-  const project = app.project.getProject();
+function runMetricsExport(format = "xlsx") {
+  const project = typeof app !== "undefined" && app.project ? app.project.getProject() : null;
   if (!project) {
     console.warn("[CritiClass] Nenhum projeto aberto.");
+    showMessageDialog("Nenhum projeto aberto no StarUML.");
     return;
   }
 
   const modelData = readModel(project);
-  const { projectName, classes, targetsById, childrenById, counts, unconfirmedApiWarnings } = modelData;
+  const { projectName, classes, targetsById } = modelData;
 
-  console.log(
-    `[CritiClass] Projeto: "${projectName}" | Classes: ${counts.classes} | Interfaces: ${counts.interfaces} | ` +
-      `Generalizations: ${counts.generalizations} | Associations: ${counts.associations} | ` +
-      `Dependencies: ${counts.dependencies} | InterfaceRealizations: ${counts.interfaceRealizations}`
+  if (!classes || classes.length === 0) {
+    console.warn("[CritiClass] Nenhuma classe encontrada no modelo.");
+    showMessageDialog("Nenhuma classe (UMLClass) foi encontrada no modelo aberto.");
+    return;
+  }
+
+  const metricsRows = collectAllMetrics(classes, { targetsById });
+  console.log(`[CritiClass] Métricas calculadas para ${metricsRows.length} classe(s) do projeto "${projectName}":`);
+  if (typeof console.table === "function") {
+    console.table(metricsRows);
+  } else {
+    console.log(metricsRows);
+  }
+
+  const safeProjectName = sanitizeFileName(projectName || "Projeto");
+
+  if (format === "csv") {
+    const fileName = `${safeProjectName}-metrics.csv`;
+    const csvContent = exportToCsvString(metricsRows);
+    triggerBrowserDownload(csvContent, fileName, "text/csv;charset=utf-8;");
+    showMessageDialog(
+      `Métricas exportadas com sucesso!\n\n` +
+        `Arquivo salvo na pasta de Downloads: ${fileName}\n` +
+        `Total de classes analisadas: ${metricsRows.length}`
+    );
+    return;
+  }
+
+  const fileName = `${safeProjectName}-metrics.xlsx`;
+  const xlsxBuffer = exportToXlsxBuffer(metricsRows);
+  triggerBrowserDownload(
+    xlsxBuffer,
+    fileName,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
 
-  classes.forEach((cls) => {
-    const className = cls.name || "(sem nome)";
-    const parentsText = formatTargetNames(cls.parents, targetsById, "nenhum");
-    const childrenIds = childrenById[cls.id] || [];
-    const childrenText = formatTargetNames(childrenIds, targetsById, "nenhuma");
-    const coupledText = formatCoupledTargets(cls.relations, targetsById);
+  showMessageDialog(
+    `Métricas (CK + L&K) geradas com sucesso!\n\n` +
+      `Arquivo salvo na pasta de Downloads: ${fileName}\n` +
+      `Abas geradas: "Métricas" e "Legenda"\n` +
+      `Total de classes analisadas: ${metricsRows.length}`
+  );
+}
 
-    console.log(
-      `[CritiClass] Classe: ${className} (isAbstract=${cls.isAbstract}, attrs=${cls.attributes.length}, ops=${cls.operations.length}) | ` +
-        `Pais: [${parentsText}] | Filhas: [${childrenText}] | Classes acopladas: [${coupledText}]`
-    );
-  });
+function handleGenerateMetrics() {
+  runMetricsExport("xlsx");
+}
 
-  modelData.rawGeneralizations.forEach((gen) => {
-    console.log(
-      `[CritiClass][Generalization bruta] source="${gen.sourceName}" -> target="${gen.targetName}" ` +
-        `(guardada em "${gen.ownerName}"; plugin interpreta: filha="${gen.sourceName}", mãe="${gen.targetName}")`
-    );
-  });
-
-  unconfirmedApiWarnings.forEach((warning) => {
-    console.warn(`[CritiClass][Aviso API StarUML] ${warning}`);
-  });
+function handleExportCsv() {
+  runMetricsExport("csv");
 }
 
 function init() {
-  app.commands.register(COMMAND_ID, handleGenerateMetrics, COMMAND_LABEL);
+  app.commands.register(COMMAND_GENERATE_XLSX, handleGenerateMetrics, LABEL_GENERATE_XLSX);
+  app.commands.register(COMMAND_EXPORT_CSV, handleExportCsv, LABEL_EXPORT_CSV);
 }
 
 exports.init = init;
