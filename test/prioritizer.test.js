@@ -3,6 +3,7 @@ const {
   resolveWeights,
   prioritizeClasses
 } = require("../src/metrics/prioritizer");
+const { parseWeightsInput } = require("../main");
 const { collectAllMetrics } = require("../src/exporter");
 const { createAcademicSampleModel } = require("./fixtures/sampleModel");
 
@@ -73,5 +74,17 @@ describe("Class Prioritizer — Weights, Criticality Score, Ranking and Top 20% 
     expect(result.criticalClasses.map((c) => c.name)).toEqual(["Class10", "Class9"]);
     expect(result.rankedRows[0].rank).toBe(1);
     expect(result.rankedRows[9].rank).toBe(10);
+  });
+
+  test("parseWeightsInput parses key=value pairs and JSON weight strings", () => {
+    const parsedKv = parseWeightsInput("WMC=2.5, cbo=3; DIT=0", DEFAULT_METRIC_WEIGHTS);
+    expect(parsedKv.WMC).toBe(2.5);
+    expect(parsedKv.CBO).toBe(3);
+    expect(parsedKv.DIT).toBe(0);
+    expect(parsedKv.RFC).toBe(1);
+
+    const parsedJson = parseWeightsInput('{"RFC": 4, "SIX": 2}', DEFAULT_METRIC_WEIGHTS);
+    expect(parsedJson.RFC).toBe(4);
+    expect(parsedJson.SIX).toBe(2);
   });
 });
