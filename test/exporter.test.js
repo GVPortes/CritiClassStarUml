@@ -3,10 +3,13 @@ const {
   PRIORITIZATION_HEADERS,
   LEGEND_HEADERS,
   LEGEND_ROWS,
+  STYLE_IDS,
   collectAllMetrics,
   buildDataSheetAoA,
   buildPrioritizationSheetAoA,
   buildLegendSheetAoA,
+  detectMainTableBounds,
+  resolveCellStyleId,
   exportToXlsxBuffer,
   exportToCsvString
 } = require("../src/exporter");
@@ -15,7 +18,7 @@ const {
   EXPECTED_ACADEMIC_METRICS
 } = require("./fixtures/sampleModel");
 
-describe("Exporter (XLSX, CSV, Priorização and Legenda)", () => {
+describe("Exporter (XLSX, CSV, Priorização, Legenda and Visual Styling)", () => {
   test("collectAllMetrics combines all CK and L&K metrics matching the reference gabarito", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
@@ -84,7 +87,40 @@ describe("Exporter (XLSX, CSV, Priorização and Legenda)", () => {
     expect(legendAcronyms).toContain("Top 20%");
   });
 
-  test("exportToXlsxBuffer produces a valid ZIP/OpenXML buffer containing Métricas, Priorização (Top 20%) and Legenda sheets", () => {
+  test("dynamically detects main table range, applies zebra striping, highlights Top 20%, and excludes auxiliary rows", () => {
+    const model = createAcademicSampleModel();
+    const metrics = collectAllMetrics(model);
+    const prioritizationAoA = buildPrioritizationSheetAoA(metrics);
+
+    const bounds = detectMainTableBounds(prioritizationAoA);
+    // 1 header row + 4 ranked class rows (excludes empty separator row and 4 auxiliary parameter rows below)
+    expect(bounds.rowCount).toBe(5);
+    expect(bounds.colCount).toBe(PRIORITIZATION_HEADERS.length);
+
+    // Header row style
+    expect(resolveCellStyleId(prioritizationAoA, 0, 0, bounds.rowCount)).toBe(STYLE_IDS.HEADER);
+    expect(resolveCellStyleId(prioritizationAoA, 0, 1, bounds.rowCount)).toBe(STYLE_IDS.HEADER);
+
+    // Row 1 is Student ("ALTA (Top 20%)"): "Classe" (col 1) and "Prioridade" (col 2) get special amber highlight
+    expect(resolveCellStyleId(prioritizationAoA, 1, 1, bounds.rowCount)).toBe(STYLE_IDS.HIGH_PRIORITY_CLASS);
+    expect(resolveCellStyleId(prioritizationAoA, 1, 2, bounds.rowCount)).toBe(STYLE_IDS.HIGH_PRIORITY_BADGE);
+    // Numeric cells on Row 1 (white row) get centered white style
+    expect(resolveCellStyleId(prioritizationAoA, 1, 3, bounds.rowCount)).toBe(STYLE_IDS.DATA_CENTER_WHITE);
+
+    // Row 2 is Normal priority (zebra row): "Classe" gets zebra class col style, metrics get zebra data style
+    expect(resolveCellStyleId(prioritizationAoA, 2, 1, bounds.rowCount)).toBe(STYLE_IDS.CLASS_COL_ZEBRA);
+    expect(resolveCellStyleId(prioritizationAoA, 2, 3, bounds.rowCount)).toBe(STYLE_IDS.DATA_CENTER_ZEBRA);
+
+    // Row 3 is Normal priority (white row): "Classe" gets white class col style, metrics get white data style
+    expect(resolveCellStyleId(prioritizationAoA, 3, 1, bounds.rowCount)).toBe(STYLE_IDS.CLASS_COL_WHITE);
+    expect(resolveCellStyleId(prioritizationAoA, 3, 3, bounds.rowCount)).toBe(STYLE_IDS.DATA_CENTER_WHITE);
+
+    // Auxiliary parameter rows below the main table do NOT receive main table zebra/borders
+    expect(resolveCellStyleId(prioritizationAoA, 6, 1, bounds.rowCount)).toBe(STYLE_IDS.AUX_HEADER);
+    expect(resolveCellStyleId(prioritizationAoA, 7, 1, bounds.rowCount)).toBe(STYLE_IDS.DEFAULT_AUX);
+  });
+
+  test("exportToXlsxBuffer produces a styled OpenXML buffer with styles.xml, frozen panes, autoFilter, and column widths", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
     const buffer = exportToXlsxBuffer(metrics);
@@ -95,6 +131,13 @@ describe("Exporter (XLSX, CSV, Priorização and Legenda)", () => {
     expect(buffer[0]).toBe(0x50);
     expect(buffer[1]).toBe(0x4b);
     const text = buffer.toString("utf8");
+    expect(text).toContain("xl/styles.xml");
+    expect(text).toContain("FF1F4E3D"); // Dark green header fill
+    expect(text).toContain("FFF3F5F7"); // Zebra row fill (#F3F5F7)
+    expect(text).toContain("FFFFF3CD"); // High priority amber fill
+    expect(text).toContain('state="frozen"'); // Frozen header row
+    expect(text).toContain("<autoFilter"); // Header filter enabled on main table
+    expect(text).toContain("customWidth=\"1\""); // Auto-adjusted column widths
     expect(text).toContain("Prioriza");
     expect(text).toContain("ALTA (Top 20%)");
     expect(text).toContain("Legenda");
