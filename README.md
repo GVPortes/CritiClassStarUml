@@ -1,6 +1,6 @@
-# CritiClass — StarUML Object-Oriented Metrics Extension
+# CritiClass — StarUML Object-Oriented Metrics & Test Prioritization Extension
 
-Extensão para o **StarUML** que coleta métricas orientadas a objetos de **Chidamber & Kemerer (CK)** e **Lorenz & Kidd (L&K)** diretamente a partir de diagramas de classes UML, gerando uma planilha (`.xlsx` com aba de **Métricas** e aba de **Legenda**, ou `.csv`) com uma linha por classe.
+Extensão para o **StarUML** que coleta métricas orientadas a objetos de **Chidamber & Kemerer (CK)** e **Lorenz & Kidd (L&K)** diretamente a partir de diagramas de classes UML, realiza a **normalização Min-Max**, calcula um **Score de Criticidade** com pesos configuráveis e destaca automaticamente as **~20% de classes mais críticas para priorização de testes** na fase de design.
 
 O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de testes na fase de design** (antes da existência do código-fonte), inspirado na estrutura do plugin [PickClass](https://github.com/YanPaivaAndrade/PickClassStarUml) (MIT).
 
@@ -42,10 +42,16 @@ O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de
   - [x] Aba **Legenda** explicando cada métrica e limitações de design (`LCOM = N/A`, `WMC` com peso 1, `RFC` aproximado)
   - [x] Diálogo final no StarUML informando o arquivo salvo e o total de classes analisadas
 
-### Fase 2 — Priorização de Testes (Futura)
-- [ ] Normalização min-max das métricas coletadas
-- [ ] Pesos configuráveis e cálculo do score de criticidade por classe
-- [ ] Indicação automática do ranking e das ~20% de classes mais críticas para teste
+### Fase 2 — Priorização de Testes (Concluída)
+- [x] **Normalização Min-Max (`src/metrics/normalizer.js` + `test/normalizer.test.js`)**
+  - [x] Cálculo de limites `[min, max]` por métrica numérica e normalização no intervalo `[0, 1]` (tratando `max === min` como `0`)
+- [x] **Pesos Configuráveis e Score de Criticidade (`src/metrics/prioritizer.js` + `test/prioritizer.test.js`)**
+  - [x] Pesos configuráveis por métrica (padrão `1.0`), persistidos no StarUML via menu **Configurar pesos das métricas...** e opção **Restaurar pesos padrão (1.0)**
+  - [x] Cálculo da média ponderada normalizada (`Score` em `[0, 1]`) e da `Soma Ponderada`
+- [x] **Ranking e Indicação das ~20% de Classes Mais Críticas**
+  - [x] Ordenação por `Score` decrescente (com critérios determinísticos de desempate: `Soma Ponderada`, `CBO`, `RFC`, `WMC` e ordem alfabética)
+  - [x] Classificação automática das `ceil(0.20 * N)` primeiras classes como **`ALTA (Top 20%)`**
+  - [x] Geração da aba **"Priorização (Top 20%)"** na planilha `.xlsx` (com ranking, scores, métricas normalizadas, pesos configurados e limites `min`/`max`) e exibição das classes críticas no diálogo final do StarUML
 
 ---
 
@@ -54,23 +60,27 @@ O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de
 ```text
 CritiClassStarUml/
 ├── package.json
-├── main.js                   # Ponto de entrada (init), comandos e diálogo final no StarUML
+├── main.js                   # Ponto de entrada (init), comandos, configuração de pesos e diálogos no StarUML
 ├── menus/
-│   └── criticlass.json       # Menu "CritiClass -> Gerar métricas (CK + L&K)" e exportação CSV
+│   └── criticlass.json       # Menu "CritiClass" (geração .xlsx/.csv e configuração de pesos)
 ├── keymaps/
 │   └── criticlass.json       # Atalho de teclado (Ctrl+Shift+M)
 ├── src/
 │   ├── modelReader.js        # Conversão do repositório do StarUML para objetos JS puros
-│   ├── exporter.js           # Geração de .xlsx (abas "Métricas" e "Legenda") e .csv
+│   ├── exporter.js           # Geração de .xlsx (abas "Métricas", "Priorização (Top 20%)" e "Legenda") e .csv
 │   └── metrics/
 │       ├── ck.js             # Funções puras das métricas de Chidamber & Kemerer
-│       └── lk.js             # Funções puras das métricas de Lorenz & Kidd
+│       ├── lk.js             # Funções puras das métricas de Lorenz & Kidd
+│       ├── normalizer.js     # Normalização Min-Max [0, 1] das métricas numéricas
+│       └── prioritizer.js    # Pesos configuráveis, Score de Criticidade, Ranking e corte Top 20%
 └── test/
     ├── fixtures/
     │   └── sampleModel.js    # Modelo de referência (Person, Student, Professor, Course) e gabarito
     ├── ck.test.js            # Testes unitários das métricas CK
     ├── lk.test.js            # Testes unitários das métricas L&K
-    ├── exporter.test.js      # Testes unitários da exportação (.xlsx, .csv e aba Legenda)
+    ├── normalizer.test.js    # Testes unitários da normalização Min-Max
+    ├── prioritizer.test.js   # Testes unitários do cálculo de Score, Ranking, Top 20% e parser de pesos
+    ├── exporter.test.js      # Testes unitários da exportação (.xlsx, .csv, Priorização e Legenda)
     └── modelReader.test.js   # Testes unitários do leitor de modelo
 ```
 
@@ -90,13 +100,12 @@ Copy-Item -Path ".\*" -Destination "$env:APPDATA\StarUML\extensions\user\CritiCl
 ln -s "$(pwd)" "$HOME/Library/Application Support/StarUML/extensions/user/CritiClassStarUml"
 ```
 
-*(Opcional: caso deseje instalar o SheetJS e o Jest via gerenciador de pacotes, execute `yarn install` ou `npm install` na pasta do projeto. O exportador também possui geração nativa OpenXML `.xlsx` embutida caso `node_modules` não esteja presente).*
-
 ### 2. Recarregar e executar
 1. No StarUML, acesse **Debug → Reload**.
 2. Abra um modelo `.mdj` com um diagrama de classes.
-3. Acione **CritiClass → Gerar métricas (CK + L&K)** no menu ou pressione **`Ctrl+Shift+M`** (ou escolha **CritiClass → Exportar métricas (.csv)**).
-4. O arquivo `<NomeDoProjeto>-metrics.xlsx` será salvo na sua pasta de **Downloads** (contendo as abas **Métricas** e **Legenda**) e um diálogo confirmará o total de classes analisadas.
+3. *(Opcional)* Ajuste os pesos das métricas em **CritiClass → Configurar pesos das métricas...**.
+4. Acione **CritiClass → Gerar métricas (CK + L&K)** no menu ou pressione **`Ctrl+Shift+M`**.
+5. O arquivo `<NomeDoProjeto>-metrics.xlsx` será salvo na sua pasta de **Downloads** (contendo as abas **Métricas**, **Priorização (Top 20%)** e **Legenda**) e um diálogo exibirá o resumo das classes mais críticas recomendadas para teste.
 
 ---
 
