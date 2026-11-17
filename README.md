@@ -1,6 +1,6 @@
 # CritiClass — StarUML Object-Oriented Metrics Extension
 
-Extensão para o **StarUML** que coleta métricas orientadas a objetos de **Chidamber & Kemerer (CK)** e **Lorenz & Kidd (L&K)** diretamente a partir de diagramas de classes UML, gerando uma planilha com uma linha por classe.
+Extensão para o **StarUML** que coleta métricas orientadas a objetos de **Chidamber & Kemerer (CK)** e **Lorenz & Kidd (L&K)** diretamente a partir de diagramas de classes UML, gerando uma planilha (`.xlsx` com aba de **Métricas** e aba de **Legenda**, ou `.csv`) com uma linha por classe.
 
 O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de testes na fase de design** (antes da existência do código-fonte), inspirado na estrutura do plugin [PickClass](https://github.com/YanPaivaAndrade/PickClassStarUml) (MIT).
 
@@ -8,7 +8,7 @@ O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de
 
 ## Checklist de Progresso
 
-### Fase 1 — Coleta e Exportação de Métricas
+### Fase 1 — Coleta e Exportação de Métricas (Concluída)
 - [x] **Etapa 1 — Esqueleto do Plugin**
   - [x] Configuração do manifesto (`package.json`)
   - [x] Registro do comando `criticlass:generate-metrics` (`main.js`)
@@ -20,27 +20,27 @@ O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de
   - [x] Extração de atributos (`name`, `visibility`, `isStatic`) e operações (`name`, `visibility`, `isStatic`, `params` excluindo retorno)
   - [x] Mapeamento de herança (`parents` e classes filhas) via `UMLGeneralization`
   - [x] Mapeamento de acoplamentos (`relations` com `kind`, `targetId` e `direction`), ignorando autoassociações e registrando ambos os sentidos quando a navegabilidade não é especificada
-- [ ] **Etapa 3 — Métricas de Chidamber & Kemerer (`src/metrics/ck.js`) + Testes (Jest)**
-  - [ ] `WMC` (Weighted Methods per Class — peso 1 por operação)
-  - [ ] `DIT` (Depth of Inheritance Tree — maior caminho até a raiz, com proteção contra ciclos e suporte a herança múltipla)
-  - [ ] `NOC` (Number of Children — subclasses diretas)
-  - [ ] `CBO` (Coupling Between Object Classes — classes/interfaces distintas acopladas)
-  - [ ] `Ce` e `Ca` (Acoplamento eferente/saída e aferente/entrada)
-  - [ ] `RFC` (Response For a Class — aproximação: operações da classe + operações distintas das classes diretamente acopladas)
-  - [ ] `LCOM` (marcado como `N/A` na fase de design)
-- [ ] **Etapa 4 — Métricas de Lorenz & Kidd (`src/metrics/lk.js`) + Testes (Jest)**
-  - [ ] `NIV` e `NCV` (atributos de instância e de classe/estáticos)
-  - [ ] `NIM` e `NCM` (operações de instância e de classe/estáticas)
-  - [ ] `PIM` (operações de instância públicas)
-  - [ ] `NMO` (operações sobrescritas na hierarquia de herança)
-  - [ ] `NMI` (operações herdadas não privadas e não sobrescritas)
-  - [ ] `NMA` (operações novas adicionadas = `NIM - NMO`)
-  - [ ] `SIX` (Specialization Index = `(NMO * DIT) / (NMO + NMA + NMI)`)
-  - [ ] `APPM` (média de parâmetros por operação, sem contar retorno)
-- [ ] **Etapa 5 — Exportação e Interface (`src/exporter.js`)**
-  - [ ] Exportação de planilha `.xlsx` (e `.csv` opcional) com uma linha por classe
-  - [ ] Aba **Legenda** explicando cada métrica e limitações de design (`LCOM = N/A`, `WMC` com peso 1, `RFC` aproximado)
-  - [ ] Diálogo final no StarUML informando o arquivo salvo e o total de classes analisadas
+- [x] **Etapa 3 — Métricas de Chidamber & Kemerer (`src/metrics/ck.js`) + Testes (`test/ck.test.js`)**
+  - [x] `WMC` (Weighted Methods per Class — peso 1 por operação, com ponto de extensão para pesos)
+  - [x] `DIT` (Depth of Inheritance Tree — maior caminho até a raiz, com proteção contra ciclos e suporte a herança múltipla)
+  - [x] `NOC` (Number of Children — subclasses diretas)
+  - [x] `CBO` (Coupling Between Object Classes — classes/interfaces distintas acopladas)
+  - [x] `Ce` e `Ca` (Acoplamento eferente/saída e aferente/entrada)
+  - [x] `RFC` (Response For a Class — aproximação: operações da classe + operações distintas das classes diretamente acopladas)
+  - [x] `LCOM` (marcado como `N/A` na fase de design)
+- [x] **Etapa 4 — Métricas de Lorenz & Kidd (`src/metrics/lk.js`) + Testes (`test/lk.test.js`)**
+  - [x] `NIV` e `NCV` (atributos de instância e de classe/estáticos)
+  - [x] `NIM` e `NCM` (operações de instância e de classe/estáticas)
+  - [x] `PIM` (operações de instância públicas)
+  - [x] `NMO` (operações sobrescritas na hierarquia de herança)
+  - [x] `NMI` (operações herdadas não privadas e não sobrescritas)
+  - [x] `NMA` (operações novas adicionadas = `NIM - NMO`)
+  - [x] `SIX` (Specialization Index = `(NMO * DIT) / (NMO + NMA + NMI)`)
+  - [x] `APPM` (média de parâmetros por operação, sem contar retorno)
+- [x] **Etapa 5 — Exportação e Interface (`src/exporter.js` + `test/exporter.test.js`)**
+  - [x] Exportação de planilha `.xlsx` (e `.csv` opcional) com uma linha por classe
+  - [x] Aba **Legenda** explicando cada métrica e limitações de design (`LCOM = N/A`, `WMC` com peso 1, `RFC` aproximado)
+  - [x] Diálogo final no StarUML informando o arquivo salvo e o total de classes analisadas
 
 ### Fase 2 — Priorização de Testes (Futura)
 - [ ] Normalização min-max das métricas coletadas
@@ -54,18 +54,29 @@ O projeto faz parte de um TCC de Engenharia de Software sobre **priorização de
 ```text
 CritiClassStarUml/
 ├── package.json
-├── main.js              # Ponto de entrada (init) e registro de comandos no StarUML
+├── main.js                   # Ponto de entrada (init), comandos e diálogo final no StarUML
 ├── menus/
-│   └── criticlass.json  # Definição do menu "CritiClass -> Gerar métricas (CK + L&K)"
+│   └── criticlass.json       # Menu "CritiClass -> Gerar métricas (CK + L&K)" e exportação CSV
 ├── keymaps/
-│   └── criticlass.json  # Atalho de teclado (Ctrl+Shift+M)
-└── src/
-    └── modelReader.js   # Conversão do repositório do StarUML para objetos JS puros
+│   └── criticlass.json       # Atalho de teclado (Ctrl+Shift+M)
+├── src/
+│   ├── modelReader.js        # Conversão do repositório do StarUML para objetos JS puros
+│   ├── exporter.js           # Geração de .xlsx (abas "Métricas" e "Legenda") e .csv
+│   └── metrics/
+│       ├── ck.js             # Funções puras das métricas de Chidamber & Kemerer
+│       └── lk.js             # Funções puras das métricas de Lorenz & Kidd
+└── test/
+    ├── fixtures/
+    │   └── sampleModel.js    # Modelo de referência (Person, Student, Professor, Course) e gabarito
+    ├── ck.test.js            # Testes unitários das métricas CK
+    ├── lk.test.js            # Testes unitários das métricas L&K
+    ├── exporter.test.js      # Testes unitários da exportação (.xlsx, .csv e aba Legenda)
+    └── modelReader.test.js   # Testes unitários do leitor de modelo
 ```
 
 ---
 
-## Como Instalar e Testar no StarUML
+## Como Instalar e Usar no StarUML
 
 ### 1. Copiar ou criar link na pasta de extensões do StarUML
 
@@ -79,8 +90,21 @@ Copy-Item -Path ".\*" -Destination "$env:APPDATA\StarUML\extensions\user\CritiCl
 ln -s "$(pwd)" "$HOME/Library/Application Support/StarUML/extensions/user/CritiClassStarUml"
 ```
 
+*(Opcional: caso deseje instalar o SheetJS e o Jest via gerenciador de pacotes, execute `yarn install` ou `npm install` na pasta do projeto. O exportador também possui geração nativa OpenXML `.xlsx` embutida caso `node_modules` não esteja presente).*
+
 ### 2. Recarregar e executar
 1. No StarUML, acesse **Debug → Reload**.
-2. Abra o console de inspeção em **Debug → Show DevTools** (aba **Console**).
-3. Abra um modelo `.mdj` com um diagrama de classes.
-4. Acione **CritiClass → Gerar métricas (CK + L&K)** no menu ou pressione **`Ctrl+Shift+M`**.
+2. Abra um modelo `.mdj` com um diagrama de classes.
+3. Acione **CritiClass → Gerar métricas (CK + L&K)** no menu ou pressione **`Ctrl+Shift+M`** (ou escolha **CritiClass → Exportar métricas (.csv)**).
+4. O arquivo `<NomeDoProjeto>-metrics.xlsx` será salvo na sua pasta de **Downloads** (contendo as abas **Métricas** e **Legenda**) e um diálogo confirmará o total de classes analisadas.
+
+---
+
+## Como Executar os Testes Unitários
+
+Com Node.js e Yarn/NPM instalados:
+```bash
+yarn test
+# ou
+npm test
+```
