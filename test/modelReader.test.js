@@ -161,3 +161,4 @@ describe("Model Reader (StarUML repository -> plain JS objects)", () => {
     ]);
   });
 });
+

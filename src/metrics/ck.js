@@ -222,3 +222,4 @@ module.exports = {
   calculateCKMetricsForClass,
   calculateCKMetrics
 };
+

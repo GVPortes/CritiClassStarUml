@@ -119,3 +119,4 @@ module.exports = {
   minMaxNormalizeValue,
   normalizeMetrics
 };
+

@@ -103,3 +103,4 @@ describe("Lorenz & Kidd (L&K) Metrics", () => {
     expect(derivedMetrics.SIX).toBe(0.5);
   });
 });
+

@@ -152,3 +152,4 @@ module.exports = {
   calculateClassScore,
   prioritizeClasses
 };
+

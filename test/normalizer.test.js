@@ -77,3 +77,4 @@ describe("Min-Max Metric Normalizer (Phase 2)", () => {
     expect(computeMinMaxBounds(singleClass).WMC).toEqual({ min: 5, max: 5 });
   });
 });
+

@@ -108,3 +108,4 @@ describe("Chidamber & Kemerer (CK) Metrics", () => {
     expect(calculateNOC(helper, [client, helper])).toBe(1);
   });
 });
+
