@@ -10,16 +10,15 @@ const {
   buildLegendSheetAoA,
   detectMainTableBounds,
   resolveCellStyleId,
-  exportToXlsxBuffer,
-  exportToCsvString
+  exportToXlsxBuffer
 } = require("../src/exporter");
 const {
   createAcademicSampleModel,
   EXPECTED_ACADEMIC_METRICS
 } = require("./fixtures/sampleModel");
 
-describe("Exporter (XLSX, CSV, Priorização, Legenda and Visual Styling)", () => {
-  test("collectAllMetrics combines all CK and L&K metrics matching the reference gabarito", () => {
+describe("Exporter (XLSX, Priorização, Legenda and Visual Styling)", () => {
+  test("collectAllMetrics combines all C&K and L&K metrics matching the reference gabarito", () => {
     const model = createAcademicSampleModel();
     const metrics = collectAllMetrics(model);
 
@@ -43,6 +42,14 @@ describe("Exporter (XLSX, CSV, Priorização, Legenda and Visual Styling)", () =
 
     expect(dataAoA[0]).toEqual(DATA_HEADERS);
     expect(dataAoA.length).toBe(5); // 1 header + 4 classes
+
+    // Verify alphabetical order on "Métricas" sheet: Course, Person, Professor, Student
+    expect(dataAoA.slice(1).map((r) => r[0])).toEqual([
+      "Course",
+      "Person",
+      "Professor",
+      "Student"
+    ]);
 
     // Check Student row values in table order
     const studentRow = dataAoA.find((r) => r[0] === "Student");
@@ -85,6 +92,29 @@ describe("Exporter (XLSX, CSV, Priorização, Legenda and Visual Styling)", () =
     expect(legendAcronyms).toContain("Min-Max");
     expect(legendAcronyms).toContain("Score");
     expect(legendAcronyms).toContain("Top 20%");
+  });
+
+  test("sorts 'Métricas' sheet rows alphabetically by class name ignoring case and accents (pt-BR, sensitivity: base)", () => {
+    const unsortedRows = [
+      { id: "1", name: "zebra", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 },
+      { id: "2", name: "Árvore", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 },
+      { id: "3", name: "automóvel", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 },
+      { id: "4", name: "Aluno", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 },
+      { id: "5", name: "banco", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 },
+      { id: "6", name: "Ãncora", WMC: 1, DIT: 0, NOC: 0, CBO: 0, Ce: 0, Ca: 0, RFC: 1, LCOM: "N/A", NIV: 0, NCV: 0, NIM: 1, NCM: 0, PIM: 1, NMO: 0, NMI: 0, NMA: 1, SIX: 0, APPM: 0 }
+    ];
+
+    const dataAoA = buildDataSheetAoA(unsortedRows);
+    const orderedClassNames = dataAoA.slice(1).map((row) => row[0]);
+
+    expect(orderedClassNames).toEqual([
+      "Aluno",
+      "Ãncora",
+      "Árvore",
+      "automóvel",
+      "banco",
+      "zebra"
+    ]);
   });
 
   test("dynamically detects main table range, applies zebra striping, highlights Top 20%, and excludes auxiliary rows", () => {
@@ -142,14 +172,5 @@ describe("Exporter (XLSX, CSV, Priorização, Legenda and Visual Styling)", () =
     expect(text).toContain("ALTA (Top 20%)");
     expect(text).toContain("Legenda");
     expect(text).toContain("Student");
-  });
-
-  test("exportToCsvString generates UTF-8 CSV with header and class rows", () => {
-    const model = createAcademicSampleModel();
-    const metrics = collectAllMetrics(model);
-    const csv = exportToCsvString(metrics);
-
-    expect(csv.startsWith("\uFEFFClasse,WMC,DIT,NOC,CBO,Ce,Ca,RFC (aprox.),LCOM")).toBe(true);
-    expect(csv).toContain("Student,2,1,0,1,1,0,3,N/A,1,0,2,0,2,1,1,1,0.333,0.5");
   });
 });

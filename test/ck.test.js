@@ -12,7 +12,7 @@ const {
   EXPECTED_ACADEMIC_METRICS
 } = require("./fixtures/sampleModel");
 
-describe("Chidamber & Kemerer (CK) Metrics", () => {
+describe("Chidamber & Kemerer (C&K) Metrics", () => {
   test("matches hand-calculated values for the 4-class academic reference model", () => {
     const model = createAcademicSampleModel();
     const results = calculateCKMetrics(model);

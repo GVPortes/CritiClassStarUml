@@ -26,25 +26,7 @@ const DEFAULT_METRIC_WEIGHTS = Object.freeze({
 
 const DEFAULT_TOP_RATIO = 0.2;
 
-function resolveWeights(customWeights = {}) {
-  const resolved = { ...DEFAULT_METRIC_WEIGHTS };
-  if (!customWeights || typeof customWeights !== "object") {
-    return resolved;
-  }
-
-  NUMERIC_METRIC_KEYS.forEach((key) => {
-    if (key in customWeights) {
-      const num = Number(customWeights[key]);
-      if (Number.isFinite(num) && num >= 0) {
-        resolved[key] = num;
-      }
-    }
-  });
-
-  return resolved;
-}
-
-function calculateClassScore(normalizedRow, weights = DEFAULT_METRIC_WEIGHTS) {
+function calculateClassScore(normalizedRow) {
   const normSource =
     (normalizedRow && (normalizedRow.normalizedRaw || normalizedRow.normalized)) || {};
 
@@ -52,10 +34,7 @@ function calculateClassScore(normalizedRow, weights = DEFAULT_METRIC_WEIGHTS) {
   let totalWeight = 0;
 
   NUMERIC_METRIC_KEYS.forEach((key) => {
-    const weight = typeof weights[key] === "number" && weights[key] > 0 ? weights[key] : 0;
-    if (weight <= 0) {
-      return;
-    }
+    const weight = DEFAULT_METRIC_WEIGHTS[key];
     const val = typeof normSource[key] === "number" && Number.isFinite(normSource[key]) ? normSource[key] : 0;
     weightedSum += weight * val;
     totalWeight += weight;
@@ -89,12 +68,12 @@ function comparePriorityRows(a, b) {
 }
 
 /**
- * Normalizes metrics, applies configurable weights, computes criticality score,
+ * Normalizes metrics, applies fixed weights (all = 1), computes criticality score,
  * ranks classes descending, and flags the Top ~20% most critical classes.
  */
 function prioritizeClasses(metricsRows, options = {}) {
   const rows = Array.isArray(metricsRows) ? metricsRows : [];
-  const weights = resolveWeights(options.weights);
+  const weights = DEFAULT_METRIC_WEIGHTS;
   const rawRatio = Number(options.topRatio);
   const topRatio =
     Number.isFinite(rawRatio) && rawRatio > 0 && rawRatio <= 1
@@ -104,7 +83,7 @@ function prioritizeClasses(metricsRows, options = {}) {
   const { bounds, rows: normalizedRows } = normalizeMetrics(rows);
 
   const scoredRows = normalizedRows.map((row) => {
-    const { score, weightedSum, totalWeight } = calculateClassScore(row, weights);
+    const { score, weightedSum, totalWeight } = calculateClassScore(row);
     return {
       ...row,
       score,
@@ -148,8 +127,6 @@ function prioritizeClasses(metricsRows, options = {}) {
 module.exports = {
   DEFAULT_METRIC_WEIGHTS,
   DEFAULT_TOP_RATIO,
-  resolveWeights,
   calculateClassScore,
   prioritizeClasses
 };
-

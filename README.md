@@ -4,12 +4,12 @@
 
 CritiClass é uma extensão para o [StarUML](https://staruml.io/) que analisa modelos UML e identifica as classes estruturalmente mais críticas de um sistema, auxiliando na definição de prioridades de teste ainda durante a fase de design.
 
-A ferramenta extrai métricas de complexidade, acoplamento, herança e estrutura de classes, combina esses indicadores em um Score de Criticidade configurável e utiliza o princípio de Pareto para identificar os 20% de classes que merecem maior atenção durante o planejamento dos testes.
+A ferramenta extrai métricas de complexidade, acoplamento, herança e estrutura de classes, combina esses indicadores em um Score de Criticidade e utiliza o princípio de Pareto para identificar os 20% de classes que merecem maior atenção durante o planejamento dos testes.
 
 <p align="center">
   <img src="https://img.shields.io/badge/StarUML-%3E%3D3.0.0-1F4E3D?style=flat-square" alt="StarUML">
-  <img src="https://img.shields.io/badge/M%C3%A9tricas-CK%20%2B%20Lorenz%20%26%20Kidd-2E6B55?style=flat-square" alt="Métricas">
-  <img src="https://img.shields.io/badge/Exporta%C3%A7%C3%A3o-XLSX%20%7C%20CSV-D97706?style=flat-square" alt="Exportação">
+  <img src="https://img.shields.io/badge/M%C3%A9tricas-C%26K%20%2B%20Lorenz%20%26%20Kidd-2E6B55?style=flat-square" alt="Métricas">
+  <img src="https://img.shields.io/badge/Exporta%C3%A7%C3%A3o-XLSX-D97706?style=flat-square" alt="Exportação">
   <img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-blue?style=flat-square" alt="Licença">
 </p>
 
@@ -38,7 +38,7 @@ O processamento é dividido em quatro etapas:
 1. **Leitura do modelo:** identificação das classes, interfaces e relacionamentos presentes no projeto.
 2. **Extração de métricas:** cálculo dos indicadores de Chidamber & Kemerer e Lorenz & Kidd.
 3. **Normalização e priorização:** conversão dos indicadores para uma escala comum e cálculo do Score de Criticidade.
-4. **Relatório:** geração de um ranking de criticidade e exportação dos resultados para Excel ou CSV.
+4. **Relatório:** geração de um ranking de criticidade e exportação dos resultados para Excel (.xlsx).
 
 ### Score de Criticidade
 
@@ -52,13 +52,11 @@ $$
 
 Quando os valores mínimo e máximo são iguais ($x_{\max} = x_{\min}$), o resultado normalizado é definido como $0$.
 
-Após a normalização, é calculado o Score de Criticidade por meio de uma média ponderada:
+Após a normalização, é calculado o Score de Criticidade por meio de uma média ponderada com peso fixo igual a $1$ para todas as métricas:
 
 $$
-\text{Score} = \frac{\sum (w_m \cdot x_{\text{norm}, m})}{\sum w_m}
+\text{Score} = \frac{\sum (w_m \cdot x_{\text{norm}, m})}{\sum w_m}, \quad w_m = 1
 $$
-
-Os pesos são configuráveis, permitindo adaptar a análise às características e aos objetivos de cada projeto.
 
 As classes são ordenadas pelo Score em ordem decrescente. As primeiras $\lceil 0{,}20 \times N \rceil$ classes recebem a classificação **ALTA (Top 20%)**.
 
@@ -70,7 +68,7 @@ Esse resultado representa uma priorização estrutural para orientar o planejame
 
 O CritiClass implementa dois conjuntos clássicos de métricas orientadas a objetos.
 
-### Chidamber & Kemerer (CK)
+### Chidamber & Kemerer (C&K)
 
 | Métrica      | Descrição                                                                                                                       |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -104,13 +102,13 @@ O CritiClass implementa dois conjuntos clássicos de métricas orientadas a obje
 
 ## Relatórios e exportação
 
-A análise pode ser exportada para Excel (.xlsx) ou CSV (.csv).
+A análise é exportada para Excel (.xlsx).
 
 O relatório Excel é organizado em três abas:
 
 ### 1. Métricas
 
-Apresenta os valores brutos de todas as métricas calculadas para cada classe do modelo.
+Apresenta os valores brutos de todas as métricas calculadas para cada classe do modelo, ordenadas alfabeticamente pelo nome da classe.
 
 ### 2. Priorização (Top 20%)
 
@@ -120,7 +118,7 @@ Apresenta o ranking das classes, incluindo:
 - Soma Ponderada;
 - Classificação de prioridade;
 - Métricas normalizadas;
-- Pesos configurados;
+- Pesos fixos iguais a 1;
 - Valores mínimos e máximos observados no modelo.
 
 As classes classificadas como ALTA (Top 20%) recebem destaque visual no relatório.
@@ -128,22 +126,6 @@ As classes classificadas como ALTA (Top 20%) recebem destaque visual no relatór
 ### 3. Legenda
 
 Reúne as definições, siglas e informações metodológicas das métricas utilizadas.
-
----
-
-## Configuração de pesos
-
-O CritiClass permite personalizar a influência de cada métrica no cálculo do Score de Criticidade.
-
-Por exemplo:
-
-```text
-WMC=2, CBO=3, RFC=2, DIT=0
-```
-
-Nesse cenário, o acoplamento (CBO) terá maior influência na priorização, enquanto DIT não contribuirá para o Score.
-
-Os pesos padrão são iguais a 1.0 para todas as métricas.
 
 ---
 
@@ -178,12 +160,9 @@ ln -s "$(pwd)" "$HOME/Library/Application Support/StarUML/extensions/user/CritiC
 
 ## Comandos disponíveis
 
-| Comando                       | Atalho           | Descrição                                                                      |
-| ----------------------------- | ---------------- | ------------------------------------------------------------------------------ |
-| Gerar métricas (CK + L&K)     | Ctrl + Shift + M | Executa a análise, gera o relatório Excel e apresenta as classes prioritárias. |
-| Exportar métricas (.csv)      | —                | Exporta os valores das métricas em CSV (UTF-8 com BOM).                        |
-| Configurar pesos das métricas | —                | Permite personalizar os pesos utilizados no Score.                             |
-| Restaurar pesos padrão        | —                | Retorna todos os pesos para 1.0.                                               |
+| Comando           | Atalho           | Descrição                                                                       |
+| ----------------- | ---------------- | ------------------------------------------------------------------------------- |
+| Generate Document | Ctrl + Shift + M | Executa a análise e gera o relatório Excel (.xlsx) com as métricas e priorização. |
 
 ---
 

@@ -6,26 +6,8 @@
       "submenu": [
         {
           "id": "criticlass.generate-metrics",
-          "label": "Gerar métricas (CK + L&K)",
+          "label": "Generate Document",
           "command": "criticlass:generate-metrics"
-        },
-        {
-          "id": "criticlass.export-csv",
-          "label": "Exportar métricas (.csv)",
-          "command": "criticlass:export-csv"
-        },
-        {
-          "type": "separator"
-        },
-        {
-          "id": "criticlass.configure-weights",
-          "label": "Configurar pesos das métricas...",
-          "command": "criticlass:configure-weights"
-        },
-        {
-          "id": "criticlass.reset-weights",
-          "label": "Restaurar pesos padrão (1.0)",
-          "command": "criticlass:reset-weights"
         }
       ]
     }

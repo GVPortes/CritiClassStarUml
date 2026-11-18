@@ -45,56 +45,56 @@ const LEGEND_HEADERS = [
 const LEGEND_ROWS = [
   [
     "WMC",
-    "CK",
+    "C&K",
     "Weighted Methods per Class",
     "Número de operações da classe (peso 1 por operação).",
     "Contagem simples: na fase de design não há corpo de método para calcular complexidade ciclomática (ponto de extensão disponível para pesos)."
   ],
   [
     "DIT",
-    "CK",
+    "C&K",
     "Depth of Inheritance Tree",
     "Maior caminho da classe até a raiz via Generalization.",
     "Suporta herança múltipla e protege contra ciclos. Interface Realization não conta para DIT."
   ],
   [
     "NOC",
-    "CK",
+    "C&K",
     "Number of Children",
     "Número de subclasses diretas via Generalization.",
     "Conta apenas herança direta (um nível abaixo)."
   ],
   [
     "CBO",
-    "CK",
+    "C&K",
     "Coupling Between Object Classes",
     "Número de classes ou interfaces distintas acopladas nos dois sentidos.",
     "Inclui Association, Directed Association, Aggregation, Composition, Dependency e Interface Realization. Generalization e autoassociações não contam."
   ],
   [
     "Ce",
-    "CK (extra)",
+    "C&K (extra)",
     "Efferent Coupling (Acoplamento de Saída)",
     "Número de classes ou interfaces distintas das quais a classe depende (direção de saída).",
     "Em associações sem navegabilidade definida, ambos os sentidos são registrados."
   ],
   [
     "Ca",
-    "CK (extra)",
+    "C&K (extra)",
     "Afferent Coupling (Acoplamento de Entrada)",
     "Número de classes ou interfaces distintas que dependem da classe (direção de entrada).",
     "Em associações sem navegabilidade definida, ambos os sentidos são registrados."
   ],
   [
     "RFC (aprox.)",
-    "CK",
+    "C&K",
     "Response For a Class (Aproximação)",
     "Operações da própria classe + operações distintas das classes/interfaces diretamente acopladas.",
     "Aproximação: como não há corpo de métodos no diagrama de classes, assume potencial invocação das operações das classes diretamente acopladas."
   ],
   [
     "LCOM",
-    "CK",
+    "C&K",
     "Lack of Cohesion in Methods",
     "N/A",
     "Não aplicável na fase de design: exige saber quais métodos acessam quais atributos dentro do código-fonte."
@@ -231,9 +231,14 @@ function collectAllMetrics(allClasses, options = {}) {
 
 function buildDataSheetAoA(metricsRows) {
   const rows = Array.isArray(metricsRows) ? metricsRows : [];
+  const sortedRows = [...rows].sort((a, b) => {
+    const nameA = (a && a.name) || "(sem nome)";
+    const nameB = (b && b.name) || "(sem nome)";
+    return String(nameA).localeCompare(String(nameB), "pt-BR", { sensitivity: "base" });
+  });
   const aoa = [DATA_HEADERS];
 
-  rows.forEach((row) => {
+  sortedRows.forEach((row) => {
     aoa.push([
       row.name || "(sem nome)",
       row.WMC,
@@ -834,20 +839,6 @@ function exportToXlsxBuffer(metricsRows, options = {}) {
   ]);
 }
 
-function escapeCsvCell(value) {
-  const str = value === null || value === undefined ? "" : String(value);
-  if (/[",\r\n;]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function exportToCsvString(metricsRows) {
-  const dataAoA = buildDataSheetAoA(metricsRows);
-  const lines = dataAoA.map((row) => row.map(escapeCsvCell).join(","));
-  return "\uFEFF" + lines.join("\r\n");
-}
-
 function sanitizeFileName(rawName) {
   const base = (rawName || "metrics").trim() || "metrics";
   return base.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_");
@@ -882,7 +873,6 @@ module.exports = {
   computeColumnWidths,
   resolveCellStyleId,
   exportToXlsxBuffer,
-  exportToCsvString,
   sanitizeFileName,
   triggerBrowserDownload
 };

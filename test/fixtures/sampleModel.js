@@ -1,6 +1,6 @@
 /**
  * Reference fixture of 4 classes (Person, Student, Professor, Course)
- * and expected hand-calculated CK & L&K metrics.
+ * and expected hand-calculated C&K & L&K metrics.
  */
 function createAcademicSampleModel() {
   return [

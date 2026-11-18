@@ -1,13 +1,13 @@
 {
   "name": "criticlass",
   "title": "CritiClass",
-  "description": "StarUML extension to collect Chidamber & Kemerer (CK) and Lorenz & Kidd (L&K) object-oriented metrics.",
+  "description": "StarUML extension to collect Chidamber & Kemerer (C&K) and Lorenz & Kidd (L&K) object-oriented metrics.",
   "version": "0.1.0",
   "keywords": [
     "UML",
     "ClassDiagram",
     "Metrics",
-    "CK",
+    "C&K",
     "Lorenz-Kidd"
   ],
   "license": "MIT",
